@@ -6,15 +6,15 @@ use std::path::Path;
 
 #[derive(PartialEq, Clone, Debug)]
 enum Op {
-    OpEnd,
-    OpIncDp,
-    OpDecDp,
-    OpIncVal,
-    OpDecVal,
-    OpOut,
-    OpIn,
-    OpJmpFwd,
-    OpJmpBck,
+    End,
+    IncDp,
+    DecDp,
+    IncVal,
+    DecVal,
+    Out,
+    In,
+    JmpFwd,
+    JmpBck,
 }
 
 enum Statuses {
@@ -23,8 +23,8 @@ enum Statuses {
 }
 
 const PROGRAM_SIZE: u16 = 4096;
-const STACK_SIZE: usize = 512;
-const DATA_SIZE: usize = 65535;
+const STACK_SIZE: u16 = 512;
+const DATA_SIZE: u16 = 65535;
 
 #[derive(Debug)]
 enum StackErrors {
@@ -33,25 +33,26 @@ enum StackErrors {
 }
 
 struct Stack {
-    ptr: usize,
-    arr: [u16; STACK_SIZE],
+    ptr: u32,
+    arr: [u16; STACK_SIZE as usize],
 }
 
 impl Stack {
     pub fn new() -> Stack {
         Stack {
             ptr: 0,
-            arr: [0; STACK_SIZE],
+            arr: [0; STACK_SIZE as usize],
         }
     }
 
     pub fn push(&mut self, a: u16) -> Result<(), StackErrors> {
-        if self.ptr >= STACK_SIZE {
+        if self.ptr >= STACK_SIZE.into() {
             return Err(StackErrors::OverFlow);
         }
 
-        self.arr[self.ptr] = a;
+        self.arr[self.ptr as usize] = a;
         self.ptr += 1;
+        // self.ptr = self.ptr.wrapping_add(1);
 
         Ok(())
     }
@@ -62,8 +63,9 @@ impl Stack {
         }
 
         self.ptr -= 1;
+        // self.ptr = self.ptr.wrapping_sub(1);
 
-        Ok(self.arr[self.ptr])
+        Ok(self.arr[self.ptr as usize])
     }
 
     pub fn is_empty(&self) -> bool {
@@ -74,10 +76,7 @@ impl Stack {
     }
 
     pub fn is_full(&self) -> bool {
-        match self.ptr {
-            STACK_SIZE => true,
-            _ => false,
-        }
+        self.ptr == STACK_SIZE.into()
     }
 }
 
@@ -90,7 +89,7 @@ struct Instruction {
 impl Default for Instruction {
     fn default() -> Self {
         Instruction {
-            operator: Op::OpEnd,
+            operator: Op::End,
             operand: 0,
         }
     }
@@ -110,7 +109,7 @@ impl Program {
     }
 
     pub fn compile(&mut self, fp: &String) -> Statuses {
-        let mut pc = 0;
+        let mut pc: u16 = 0;
 
         for c in fp.trim().chars() {
             if !pc < PROGRAM_SIZE {
@@ -120,14 +119,14 @@ impl Program {
             let idx = pc as usize;
 
             match c {
-                '>' => self.instructions[idx].operator = Op::OpIncDp,
-                '<' => self.instructions[idx].operator = Op::OpDecDp,
-                '+' => self.instructions[idx].operator = Op::OpIncVal,
-                '-' => self.instructions[idx].operator = Op::OpDecVal,
-                '.' => self.instructions[idx].operator = Op::OpOut,
-                ',' => self.instructions[idx].operator = Op::OpIn,
+                '>' => self.instructions[idx].operator = Op::IncDp,
+                '<' => self.instructions[idx].operator = Op::DecDp,
+                '+' => self.instructions[idx].operator = Op::IncVal,
+                '-' => self.instructions[idx].operator = Op::DecVal,
+                '.' => self.instructions[idx].operator = Op::Out,
+                ',' => self.instructions[idx].operator = Op::In,
                 '[' => {
-                    self.instructions[idx].operator = Op::OpJmpFwd;
+                    self.instructions[idx].operator = Op::JmpFwd;
 
                     if self.stack.is_full() {
                         return Statuses::Failure;
@@ -142,14 +141,14 @@ impl Program {
                         return Statuses::Failure;
                     }
 
-                    let jmp_pc = self
+                    let jmp_pc: u16 = self
                         .stack
                         .pop()
                         .expect("Critical error, failed to pop value off stack");
 
-                    self.instructions[idx].operator = Op::OpJmpBck;
+                    self.instructions[idx].operator = Op::JmpBck;
                     self.instructions[idx].operand = jmp_pc;
-                    self.instructions[jmp_pc as usize].operand = jmp_pc;
+                    self.instructions[jmp_pc as usize].operand = pc;
                 }
                 _ => pc = pc.wrapping_sub(1),
             }
@@ -161,28 +160,33 @@ impl Program {
             return Statuses::Failure;
         }
 
-        self.instructions[pc as usize].operator = Op::OpEnd;
+        self.instructions[pc as usize].operator = Op::End;
 
         Statuses::Success
     }
 
     pub fn execute(&mut self) -> Statuses {
-        let mut data = [0; DATA_SIZE];
-        let mut pc = 0;
-        let mut ptr = 0;
+        let mut data: [u16; DATA_SIZE as usize] = [0; DATA_SIZE as usize];
+        let mut pc: u16 = 0;
+        let mut ptr: u32 = 0;
 
-        while (self.instructions[pc].operator != Op::OpEnd) && (ptr < DATA_SIZE) {
-            match self.instructions[pc].operator {
-                Op::OpIncDp => ptr += 1,
-                Op::OpDecDp => ptr -= 1,
-                Op::OpIncVal => data[ptr] += 1,
-                Op::OpDecVal => data[ptr] -= 1,
-                Op::OpOut => print!(
+        while (self.instructions[pc as usize].operator != Op::End) && (ptr < DATA_SIZE.into()) {
+            match self.instructions[pc as usize].operator {
+                // Op::OpIncDp => ptr += 1,
+                Op::IncDp => ptr = ptr.wrapping_add(1),
+                // Op::OpDecDp => ptr -= 1,
+                Op::DecDp => ptr = ptr.wrapping_sub(1),
+                // Op::OpIncVal => data[ptr as usize] += 1,
+                Op::IncVal => data[ptr as usize] = data[ptr as usize].wrapping_add(1),
+                // Op::OpDecVal => data[ptr as usize] -= 1,
+                Op::DecVal => data[ptr as usize] = data[ptr as usize].wrapping_sub(1),
+                Op::Out => print!(
                     "{}",
-                    char::from_u32(data[ptr]).expect("failed to convert data to char")
+                    char::from_u32(data[ptr as usize].into())
+                        .expect("failed to convert data to char")
                 ),
-                Op::OpIn => {
-                    data[ptr] = {
+                Op::In => {
+                    data[ptr as usize] = {
                         let mut buffer = [0u8; 2];
                         match io::stdin().read_exact(&mut buffer) {
                             Ok(_) => u16::from_be_bytes(buffer).into(),
@@ -190,22 +194,23 @@ impl Program {
                         }
                     }
                 }
-                Op::OpJmpFwd => {
-                    if data[ptr] == 0 {
-                        pc = self.instructions[pc].operand as usize
+                Op::JmpFwd => {
+                    if data[ptr as usize] == 0 {
+                        pc = self.instructions[pc as usize].operand
                     }
                 }
-                Op::OpJmpBck => {
-                    if data[ptr] != 0 {
-                        pc = self.instructions[pc].operand as usize
+                Op::JmpBck => {
+                    if data[ptr as usize] != 0 {
+                        pc = self.instructions[pc as usize].operand
                     }
                 }
                 _ => return Statuses::Failure,
             }
-            pc += 1;
+            // pc += 1;
+            pc = pc.wrapping_add(1);
         }
 
-        match ptr != DATA_SIZE {
+        match ptr != DATA_SIZE.into() {
             true => Statuses::Success,
             false => Statuses::Failure,
         }
