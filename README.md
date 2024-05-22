@@ -1,6 +1,6 @@
 # Mindsuck
 
-A brainf**ck interpreter inspired by [Krzysztof Gabis's](http://github.com/kgabis/brainfuck-c) interpreter in c, except that mine ~~kind~~ of sucks (not anymore it doesn't 😎).
+A brainf**ck interpreter inspired by [Krzysztof Gabis's](http://github.com/kgabis/brainfuck-c) interpreter in c, except that mine ~~kind of~~ sucks (not anymore it doesn't 😎).
 
 Written in pure rust, It can run bottles.bf, which is pretty cool
 
