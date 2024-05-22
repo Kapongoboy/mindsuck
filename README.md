@@ -1,9 +1,8 @@
 # Mindsuck
 
-A brainf**ck interpreter inspired by [Krzysztof Gabis's](http://github.com/kgabis/brainfuck-c) interpreter in c, except that mine kind of sucks.
+A brainf**ck interpreter inspired by [Krzysztof Gabis's](http://github.com/kgabis/brainfuck-c) interpreter in c, except that mine ~~kind~~ of sucks (not anymore it doesn't 😎).
 
-Written in pure rust, it can run hello world but give it anything with comments
-or other illegal characters and it falls apart ;-;
+Written in pure rust, It can run bottles.bf, which is pretty cool
 
 ## Usage
 
@@ -22,5 +21,13 @@ Then run it with the path to the brainf**ck file as the first argument:
 You can also run it with cargo run like so:
 
 ```bash
-cargo run --release -- examples/hello.bf
+cargo run --release -- examples/bottles.bf
 ```
+
+For my python enjoyers I've included as an extra treat
+
+```bash
+python src/whynot.py -- examples/bottles.bf
+```
+
+And that's all she wrote
